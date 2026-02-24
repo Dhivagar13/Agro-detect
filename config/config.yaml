@@ -1,0 +1,66 @@
+# AgroDetect AI Configuration
+
+# Model Configuration
+model:
+  architecture: "mobilenet_v2"
+  input_size: [224, 224, 3]
+  num_classes: 10  # Update based on dataset
+  weights: "imagenet"
+  frozen_layers: 100
+  
+# Training Configuration
+training:
+  batch_size: 32
+  epochs: 50
+  learning_rate: 0.001
+  validation_split: 0.15
+  test_split: 0.15
+  early_stopping_patience: 5
+  reduce_lr_patience: 3
+  reduce_lr_factor: 0.5
+
+# Augmentation Configuration
+augmentation:
+  rotation_range: 20
+  horizontal_flip: true
+  vertical_flip: true
+  zoom_range: [0.8, 1.2]
+  brightness_range: [0.8, 1.2]
+  
+# Inference Configuration
+inference:
+  confidence_threshold: 0.7
+  batch_size: 8
+  device: "cpu"  # or "gpu"
+  
+# Optimization Configuration
+optimization:
+  quantization_type: "int8"
+  pruning_sparsity: 0.5
+  target_accuracy_drop: 0.02
+  
+# Data Configuration
+data:
+  raw_dir: "data/raw"
+  processed_dir: "data/processed"
+  manifests_dir: "data/manifests"
+  supported_formats: ["jpg", "jpeg", "png", "bmp"]
+  max_file_size_mb: 10
+  
+# Model Storage
+models:
+  save_dir: "models"
+  checkpoint_dir: "models/checkpoints"
+  
+# Logging Configuration
+logging:
+  level: "INFO"
+  log_dir: "logs"
+  log_file: "agrodetect.log"
+  
+# Streamlit Configuration
+streamlit:
+  page_title: "AgroDetect AI"
+  page_icon: "🌱"
+  layout: "wide"
+  initial_sidebar_state: "expanded"
