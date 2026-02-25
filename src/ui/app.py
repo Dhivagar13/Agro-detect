@@ -23,6 +23,7 @@ from config import load_config
 from src.inference.inference_engine import InferenceEngine
 from src.utils.disease_remedies import get_remedy, is_valid_plant_image
 from src.utils.groq_analyzer import get_groq_analyzer
+from src.utils.gemini_analyzer import get_gemini_analyzer
 from src.utils.settings_manager import get_settings_manager
 
 # Page configuration
@@ -50,6 +51,10 @@ if 'groq_api_key' not in st.session_state:
     # Try to load from environment variable or settings
     import os
     st.session_state.groq_api_key = os.getenv('GROQ_API_KEY', '')
+if 'gemini_api_key' not in st.session_state:
+    # Try to load from environment variable
+    import os
+    st.session_state.gemini_api_key = os.getenv('GEMINI_API_KEY', '')
 if 'settings_manager' not in st.session_state:
     st.session_state.settings_manager = get_settings_manager()
 
@@ -60,8 +65,9 @@ settings_mgr = st.session_state.settings_manager
 if settings_mgr.model.groq_api_key:
     st.session_state.groq_api_key = settings_mgr.model.groq_api_key
 
-# Initialize Groq analyzer
+# Initialize AI analyzers
 groq_analyzer = get_groq_analyzer(st.session_state.groq_api_key)
+gemini_analyzer = get_gemini_analyzer(st.session_state.gemini_api_key)
 
 # Initialize inference engine
 @st.cache_resource
@@ -970,12 +976,15 @@ elif page == "🔬 AI Scanner":
                         # Get AI-powered remedy recommendations
                         remedy_info = get_remedy(result.disease_class)
                         
-                        # Get enhanced AI analysis from Groq
-                        ai_analysis = None
+                        # Get enhanced AI analysis from both Groq and Gemini
+                        groq_analysis = None
+                        gemini_analysis = None
+                        
+                        # Get Groq analysis
                         if groq_analyzer and remedy_info['symptoms']:
-                            with st.spinner("🤖 Getting AI-powered insights..."):
+                            with st.spinner("🤖 Getting Groq AI insights..."):
                                 try:
-                                    ai_analysis = groq_analyzer.analyze_disease(
+                                    groq_analysis = groq_analyzer.analyze_disease(
                                         disease_name=remedy_info['name'],
                                         confidence=result.confidence,
                                         symptoms=remedy_info['symptoms'],
@@ -983,58 +992,107 @@ elif page == "🔬 AI Scanner":
                                         context=f"Detection confidence: {result.confidence:.1f}%"
                                     )
                                 except Exception as e:
-                                    st.warning(f"AI analysis unavailable: {str(e)}")
+                                    st.warning(f"⚠️ Groq AI unavailable: {str(e)}")
                         
-                        # Display AI Analysis if available
-                        if ai_analysis:
+                        # Get Gemini analysis
+                        if gemini_analyzer and remedy_info['symptoms']:
+                            with st.spinner("✨ Getting Gemini AI insights..."):
+                                try:
+                                    gemini_analysis = gemini_analyzer.analyze_disease(
+                                        disease_name=remedy_info['name'],
+                                        confidence=result.confidence,
+                                        symptoms=remedy_info['symptoms'],
+                                        causes=remedy_info['causes'],
+                                        context=f"Detection confidence: {result.confidence:.1f}%"
+                                    )
+                                except Exception as e:
+                                    st.warning(f"⚠️ Gemini AI unavailable: {str(e)}")
+                        
+                        # Display AI Analyses side by side if available
+                        if groq_analysis or gemini_analysis:
                             st.markdown("<br>", unsafe_allow_html=True)
-                            
-                            # Urgency badge
-                            urgency_colors = {
-                                'low': '#10b981',
-                                'moderate': '#f59e0b',
-                                'high': '#ef4444',
-                                'critical': '#dc2626'
-                            }
-                            urgency_color = urgency_colors.get(ai_analysis['urgency'], '#f59e0b')
-                            
-                            st.markdown(f"""
-                                <div class='dashboard-card' style='border-left: 5px solid {urgency_color};'>
-                                    <h3 style='margin-top: 0;'>🤖 AI-Powered Expert Analysis</h3>
-                                    <div style='background: {urgency_color}; color: white; display: inline-block; padding: 0.5rem 1rem; border-radius: 20px; font-weight: bold; margin-bottom: 1rem;'>
-                                        Urgency: {ai_analysis['urgency'].upper()}
-                                    </div>
-                                    <p style='font-size: 1.1rem; line-height: 1.8; margin: 1rem 0;'>{ai_analysis['analysis']}</p>
+                            st.markdown("""
+                                <div class='dashboard-card'>
+                                    <h3 style='margin-top: 0;'>🤖 Dual AI-Powered Expert Analysis</h3>
+                                    <p style='color: #6b7280;'>Compare insights from two leading AI models</p>
                                 </div>
                             """, unsafe_allow_html=True)
                             
-                            # AI Recommendations
-                            if ai_analysis['recommendations']:
-                                st.markdown("""
-                                    <div class='dashboard-card'>
-                                        <h3 style='margin-top: 0;'>💡 AI-Recommended Immediate Actions</h3>
-                                    </div>
-                                """, unsafe_allow_html=True)
-                                
-                                # Parse and display recommendations
-                                recommendations = ai_analysis['recommendations'].strip().split('\n')
-                                for rec in recommendations:
-                                    if rec.strip():
-                                        st.markdown(f"• {rec.strip()}")
+                            col_groq, col_gemini = st.columns(2)
                             
-                            # Additional Tips
-                            if ai_analysis['additional_tips']:
-                                st.markdown("<br>", unsafe_allow_html=True)
-                                st.markdown("""
-                                    <div class='dashboard-card'>
-                                        <h3 style='margin-top: 0;'>💭 Expert Tips</h3>
-                                    </div>
-                                """, unsafe_allow_html=True)
-                                
-                                tips = ai_analysis['additional_tips'].strip().split('\n')
-                                for tip in tips:
-                                    if tip.strip():
-                                        st.markdown(f"• {tip.strip()}")
+                            # Groq Analysis Column
+                            with col_groq:
+                                if groq_analysis:
+                                    urgency_colors = {
+                                        'low': '#10b981',
+                                        'moderate': '#f59e0b',
+                                        'high': '#ef4444',
+                                        'critical': '#dc2626'
+                                    }
+                                    urgency_color = urgency_colors.get(groq_analysis['urgency'], '#f59e0b')
+                                    
+                                    st.markdown(f"""
+                                        <div class='dashboard-card' style='border-left: 5px solid #667eea; background: rgba(102, 126, 234, 0.05);'>
+                                            <h4 style='margin-top: 0; color: #667eea;'>🤖 Groq AI (Mixtral)</h4>
+                                            <div style='background: {urgency_color}; color: white; display: inline-block; padding: 0.4rem 0.8rem; border-radius: 15px; font-weight: bold; font-size: 0.85rem; margin-bottom: 0.5rem;'>
+                                                Urgency: {groq_analysis['urgency'].upper()}
+                                            </div>
+                                            <p style='font-size: 0.95rem; line-height: 1.6; margin: 0.5rem 0;'>{groq_analysis['analysis']}</p>
+                                        </div>
+                                    """, unsafe_allow_html=True)
+                                    
+                                    if groq_analysis['recommendations']:
+                                        st.markdown("**💡 Recommendations:**")
+                                        recommendations = groq_analysis['recommendations'].strip().split('\n')
+                                        for rec in recommendations[:3]:  # Show top 3
+                                            if rec.strip():
+                                                st.markdown(f"• {rec.strip()}")
+                                    
+                                    if groq_analysis['additional_tips']:
+                                        with st.expander("💭 More Tips"):
+                                            tips = groq_analysis['additional_tips'].strip().split('\n')
+                                            for tip in tips:
+                                                if tip.strip():
+                                                    st.markdown(f"• {tip.strip()}")
+                                else:
+                                    st.info("🤖 Groq AI analysis not available")
+                            
+                            # Gemini Analysis Column
+                            with col_gemini:
+                                if gemini_analysis:
+                                    urgency_colors = {
+                                        'low': '#10b981',
+                                        'moderate': '#f59e0b',
+                                        'high': '#ef4444',
+                                        'critical': '#dc2626'
+                                    }
+                                    urgency_color = urgency_colors.get(gemini_analysis['urgency'], '#f59e0b')
+                                    
+                                    st.markdown(f"""
+                                        <div class='dashboard-card' style='border-left: 5px solid #4285f4; background: rgba(66, 133, 244, 0.05);'>
+                                            <h4 style='margin-top: 0; color: #4285f4;'>✨ Gemini AI (Google)</h4>
+                                            <div style='background: {urgency_color}; color: white; display: inline-block; padding: 0.4rem 0.8rem; border-radius: 15px; font-weight: bold; font-size: 0.85rem; margin-bottom: 0.5rem;'>
+                                                Urgency: {gemini_analysis['urgency'].upper()}
+                                            </div>
+                                            <p style='font-size: 0.95rem; line-height: 1.6; margin: 0.5rem 0;'>{gemini_analysis['analysis']}</p>
+                                        </div>
+                                    """, unsafe_allow_html=True)
+                                    
+                                    if gemini_analysis['recommendations']:
+                                        st.markdown("**💡 Recommendations:**")
+                                        recommendations = gemini_analysis['recommendations'].strip().split('\n')
+                                        for rec in recommendations[:3]:  # Show top 3
+                                            if rec.strip():
+                                                st.markdown(f"• {rec.strip()}")
+                                    
+                                    if gemini_analysis['additional_tips']:
+                                        with st.expander("💭 More Tips"):
+                                            tips = gemini_analysis['additional_tips'].strip().split('\n')
+                                            for tip in tips:
+                                                if tip.strip():
+                                                    st.markdown(f"• {tip.strip()}")
+                                else:
+                                    st.info("✨ Gemini AI analysis not available")
                         
                         st.markdown("<br>", unsafe_allow_html=True)
                         
@@ -1796,8 +1854,28 @@ elif page == "⚙️ Settings":
             
             if groq_analyzer:
                 st.success("✅ AI Analysis: Enabled")
+                
+                # Test API key button
+                if st.button("🧪 Test API Key", key="test_api_btn"):
+                    with st.spinner("Testing API connection..."):
+                        try:
+                            test_result = groq_analyzer.analyze_disease(
+                                disease_name="Test Disease",
+                                confidence=85.0,
+                                symptoms=["Test symptom"],
+                                causes=["Test cause"],
+                                context="API test"
+                            )
+                            st.success("✅ API key is valid and working!")
+                        except Exception as e:
+                            st.error(f"❌ API test failed: {str(e)}")
+                            if "400" in str(e):
+                                st.info("💡 Tip: Check if your API key is correct and has not expired.")
+                            elif "401" in str(e):
+                                st.info("💡 Tip: Your API key may be invalid. Get a new one from groq.com")
             else:
                 st.warning("⚠️ AI Analysis: Disabled (No API key)")
+                st.info("Get your free API key at: [groq.com](https://groq.com)")
             
             st.markdown("### Model Selection")
             

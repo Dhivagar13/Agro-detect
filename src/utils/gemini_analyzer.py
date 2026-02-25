@@ -1,4 +1,4 @@
-"""Groq AI-powered analysis for enhanced disease insights"""
+"""Google Gemini AI-powered analysis for enhanced disease insights"""
 
 import os
 import json
@@ -6,21 +6,21 @@ from typing import Dict, Optional
 import requests
 
 
-class GroqAnalyzer:
+class GeminiAnalyzer:
     """
-    Enhanced AI analysis using Groq LLM for contextual disease insights
+    Enhanced AI analysis using Google Gemini for contextual disease insights
     """
     
     def __init__(self, api_key: str):
         """
-        Initialize Groq Analyzer
+        Initialize Gemini Analyzer
         
         Args:
-            api_key: Groq API key
+            api_key: Google Gemini API key
         """
         self.api_key = api_key
-        self.base_url = "https://api.groq.com/openai/v1/chat/completions"
-        self.model = "mixtral-8x7b-32768"  # Fast and accurate model
+        self.base_url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent"
+        self.model = "gemini-pro"
     
     def analyze_disease(
         self,
@@ -47,11 +47,11 @@ class GroqAnalyzer:
         prompt = self._build_prompt(disease_name, confidence, symptoms, causes, context)
         
         try:
-            response = self._call_groq_api(prompt)
+            response = self._call_gemini_api(prompt)
             return self._parse_response(response)
         except Exception as e:
             return {
-                "analysis": f"AI analysis unavailable: {str(e)}",
+                "analysis": f"Gemini analysis unavailable: {str(e)}",
                 "recommendations": "Please refer to the standard treatment guidelines.",
                 "urgency": "moderate",
                 "additional_tips": ""
@@ -65,7 +65,7 @@ class GroqAnalyzer:
         causes: list,
         context: Optional[str]
     ) -> str:
-        """Build the prompt for Groq API"""
+        """Build the prompt for Gemini API"""
         
         prompt = f"""You are an expert agricultural pathologist and plant disease specialist. Analyze the following plant disease detection and provide actionable insights.
 
@@ -99,35 +99,36 @@ Keep your response concise, practical, and farmer-friendly. Focus on actionable 
 
         return prompt
     
-    def _call_groq_api(self, prompt: str) -> str:
-        """Call Groq API"""
+    def _call_gemini_api(self, prompt: str) -> str:
+        """Call Gemini API"""
+        
+        url = f"{self.base_url}?key={self.api_key}"
         
         headers = {
-            "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json"
         }
         
         payload = {
-            "model": self.model,
-            "messages": [
+            "contents": [
                 {
-                    "role": "system",
-                    "content": "You are an expert agricultural pathologist specializing in plant disease diagnosis and treatment. Provide clear, actionable advice to farmers."
-                },
-                {
-                    "role": "user",
-                    "content": prompt
+                    "parts": [
+                        {
+                            "text": prompt
+                        }
+                    ]
                 }
             ],
-            "temperature": 0.7,
-            "max_tokens": 1000,
-            "top_p": 1,
-            "stream": False
+            "generationConfig": {
+                "temperature": 0.7,
+                "topK": 40,
+                "topP": 0.95,
+                "maxOutputTokens": 1024,
+            }
         }
         
         try:
             response = requests.post(
-                self.base_url,
+                url,
                 headers=headers,
                 json=payload,
                 timeout=30
@@ -140,10 +141,14 @@ Keep your response concise, practical, and farmer-friendly. Focus on actionable 
             
             result = response.json()
             
-            if 'choices' not in result or len(result['choices']) == 0:
-                raise Exception("No response from API")
+            if 'candidates' not in result or len(result['candidates']) == 0:
+                raise Exception("No response from Gemini API")
             
-            return result['choices'][0]['message']['content']
+            if 'content' not in result['candidates'][0]:
+                raise Exception("Invalid response format from Gemini")
+            
+            text = result['candidates'][0]['content']['parts'][0]['text']
+            return text
             
         except requests.exceptions.RequestException as e:
             raise Exception(f"Network error: {str(e)}")
@@ -203,7 +208,7 @@ Keep your response concise, practical, and farmer-friendly. Focus on actionable 
                     additional_tips += line + "\n"
         
         return {
-            "analysis": analysis.strip() or "AI analysis completed successfully.",
+            "analysis": analysis.strip() or "Gemini analysis completed successfully.",
             "recommendations": recommendations.strip() or "Follow standard treatment protocols.",
             "urgency": urgency,
             "additional_tips": additional_tips.strip() or "Monitor plant health regularly."
@@ -233,7 +238,7 @@ Provide 2-3 specific weather-related tips for:
 Keep it brief and actionable."""
 
         try:
-            response = self._call_groq_api(prompt)
+            response = self._call_gemini_api(prompt)
             return response.strip()
         except Exception as e:
             return "Monitor weather conditions and apply treatments during dry periods."
@@ -272,27 +277,27 @@ Provide:
 Be concise and practical."""
 
         try:
-            response = self._call_groq_api(prompt)
+            response = self._call_gemini_api(prompt)
             return response.strip()
         except Exception as e:
             return "Both organic and chemical treatments can be effective. Choose based on severity and personal preference."
 
 
-def get_groq_analyzer(api_key: Optional[str] = None) -> Optional[GroqAnalyzer]:
+def get_gemini_analyzer(api_key: Optional[str] = None) -> Optional[GeminiAnalyzer]:
     """
-    Get Groq analyzer instance
+    Get Gemini analyzer instance
     
     Args:
-        api_key: Groq API key (optional, will check env if not provided)
+        api_key: Gemini API key (optional, will check env if not provided)
     
     Returns:
-        GroqAnalyzer instance or None if API key not available
+        GeminiAnalyzer instance or None if API key not available
     """
     
     if api_key is None:
-        api_key = os.getenv('GROQ_API_KEY')
+        api_key = os.getenv('GEMINI_API_KEY')
     
     if api_key:
-        return GroqAnalyzer(api_key)
+        return GeminiAnalyzer(api_key)
     
     return None
