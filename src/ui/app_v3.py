@@ -81,105 +81,49 @@ st.markdown("""
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     
-    /* Main background with pattern */
+    /* Main background */
     .stApp {
-        background: 
-            linear-gradient(135deg, rgba(102, 126, 234, 0.95) 0%, rgba(118, 75, 162, 0.95) 100%),
-            repeating-linear-gradient(45deg, transparent, transparent 35px, rgba(255,255,255,.05) 35px, rgba(255,255,255,.05) 70px);
-        background-attachment: fixed;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     }
     
-    /* Sidebar styling with depth */
+    /* Sidebar styling */
     [data-testid="stSidebar"] {
-        background: 
-            linear-gradient(180deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
-        box-shadow: 5px 0 30px rgba(0,0,0,0.3);
+        background: linear-gradient(180deg, #1e3c72 0%, #2a5298 100%);
     }
     
     [data-testid="stSidebar"] * {
         color: white !important;
     }
     
-    [data-testid="stSidebar"]::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: 
-            radial-gradient(circle at 20% 50%, rgba(102, 126, 234, 0.1) 0%, transparent 50%),
-            radial-gradient(circle at 80% 80%, rgba(118, 75, 162, 0.1) 0%, transparent 50%);
-        pointer-events: none;
-    }
-    
-    /* Card styling with glassmorphism and dark text */
+    /* Card styling */
     .dashboard-card {
-        background: rgba(255, 255, 255, 0.98);
-        backdrop-filter: blur(20px);
-        border-radius: 24px;
-        padding: 2.5rem;
-        box-shadow: 
-            0 20px 60px rgba(0,0,0,0.15),
-            0 0 0 1px rgba(255,255,255,0.5) inset;
-        margin: 1.5rem 0;
-        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-        border: 1px solid rgba(255, 255, 255, 0.8);
-        color: #1f2937 !important;
-    }
-    
-    .dashboard-card h3 {
-        color: #1f2937 !important;
-    }
-    
-    .dashboard-card p, .dashboard-card div {
-        color: #4b5563 !important;
+        background: white;
+        border-radius: 20px;
+        padding: 2rem;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        margin: 1rem 0;
+        transition: all 0.3s ease;
     }
     
     .dashboard-card:hover {
-        transform: translateY(-8px) scale(1.01);
-        box-shadow: 
-            0 30px 80px rgba(0,0,0,0.2),
-            0 0 0 1px rgba(255,255,255,0.8) inset;
+        transform: translateY(-5px);
+        box-shadow: 0 15px 50px rgba(0,0,0,0.15);
     }
     
-    /* Metric cards with 3D effect */
+    /* Metric cards */
     .metric-card {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        border-radius: 20px;
-        padding: 2rem;
+        border-radius: 15px;
+        padding: 1.5rem;
         color: white;
         text-align: center;
-        box-shadow: 
-            0 15px 35px rgba(102, 126, 234, 0.4),
-            0 5px 15px rgba(0,0,0,0.1),
-            inset 0 1px 0 rgba(255,255,255,0.3);
-        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-        position: relative;
-        overflow: hidden;
-    }
-    
-    .metric-card::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: -100%;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-        transition: left 0.5s;
-    }
-    
-    .metric-card:hover::before {
-        left: 100%;
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        transition: all 0.3s ease;
     }
     
     .metric-card:hover {
-        transform: translateY(-10px) scale(1.05);
-        box-shadow: 
-            0 25px 50px rgba(102, 126, 234, 0.5),
-            0 10px 25px rgba(0,0,0,0.15),
-            inset 0 1px 0 rgba(255,255,255,0.4);
+        transform: scale(1.05);
+        box-shadow: 0 12px 35px rgba(102, 126, 234, 0.4);
     }
     
     .metric-value {
@@ -200,140 +144,70 @@ st.markdown("""
         margin-top: 0.5rem;
     }
     
-    /* Status badges with glow */
+    /* Status badges */
     .status-badge {
         display: inline-block;
-        padding: 0.75rem 1.5rem;
-        border-radius: 25px;
-        font-size: 0.9rem;
-        font-weight: 700;
-        margin: 0.5rem;
-        box-shadow: 0 5px 20px rgba(0,0,0,0.2);
-        transition: all 0.3s ease;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-    
-    .status-badge:hover {
-        transform: scale(1.05);
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        margin: 0.25rem;
     }
     
     .status-success {
-        background: linear-gradient(135deg, #10b981, #059669);
+        background: #10b981;
         color: white;
-        box-shadow: 0 5px 20px rgba(16, 185, 129, 0.4);
     }
     
     .status-warning {
-        background: linear-gradient(135deg, #f59e0b, #d97706);
+        background: #f59e0b;
         color: white;
-        box-shadow: 0 5px 20px rgba(245, 158, 11, 0.4);
     }
     
     .status-error {
-        background: linear-gradient(135deg, #ef4444, #dc2626);
+        background: #ef4444;
         color: white;
-        box-shadow: 0 5px 20px rgba(239, 68, 68, 0.4);
     }
     
-    /* Header styling with gradient border and dark text */
+    /* Header styling */
     .page-header {
-        background: rgba(255, 255, 255, 0.98);
-        backdrop-filter: blur(20px);
-        border-radius: 24px;
-        padding: 3rem;
+        background: white;
+        border-radius: 20px;
+        padding: 2rem;
         margin-bottom: 2rem;
-        box-shadow: 
-            0 20px 60px rgba(0,0,0,0.15),
-            0 0 0 1px rgba(255,255,255,0.5) inset;
-        border: 2px solid transparent;
-        background-clip: padding-box;
-        position: relative;
-    }
-    
-    .page-header * {
-        color: #1f2937 !important;
-    }
-    
-    .page-header::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        border-radius: 24px;
-        padding: 2px;
-        background: linear-gradient(135deg, #667eea, #764ba2);
-        -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-        -webkit-mask-composite: xor;
-        mask-composite: exclude;
-        pointer-events: none;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.1);
     }
     
     .page-title {
-        font-size: 3rem;
-        font-weight: 900;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #667eea 100%);
-        background-size: 200% auto;
+        font-size: 2.5rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
-        margin-bottom: 1rem;
-        animation: shimmer 3s linear infinite;
-        text-shadow: 0 0 30px rgba(102, 126, 234, 0.3);
+        margin-bottom: 0.5rem;
     }
     
     .page-subtitle {
-        font-size: 1.2rem;
+        font-size: 1.1rem;
         color: #6b7280;
-        font-weight: 500;
-        line-height: 1.6;
     }
     
-    /* Button styling with glow effect */
+    /* Button styling */
     .stButton>button {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
         border: none;
-        border-radius: 14px;
-        padding: 1rem 2.5rem;
-        font-weight: 700;
+        border-radius: 12px;
+        padding: 0.75rem 2rem;
+        font-weight: 600;
         font-size: 1rem;
-        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-        box-shadow: 
-            0 8px 25px rgba(102, 126, 234, 0.4),
-            0 0 0 0 rgba(102, 126, 234, 0);
-        position: relative;
-        overflow: hidden;
-    }
-    
-    .stButton>button::before {
-        content: '';
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        width: 0;
-        height: 0;
-        border-radius: 50%;
-        background: rgba(255,255,255,0.3);
-        transform: translate(-50%, -50%);
-        transition: width 0.6s, height 0.6s;
-    }
-    
-    .stButton>button:hover::before {
-        width: 300px;
-        height: 300px;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
     }
     
     .stButton>button:hover {
-        transform: translateY(-3px);
-        box-shadow: 
-            0 15px 40px rgba(102, 126, 234, 0.5),
-            0 0 30px rgba(102, 126, 234, 0.3);
-    }
-    
-    .stButton>button:active {
-        transform: translateY(-1px);
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
     }
     
     /* Chart container */
@@ -344,36 +218,28 @@ st.markdown("""
         box-shadow: 0 4px 20px rgba(0,0,0,0.08);
     }
     
-    /* Alert boxes with depth */
+    /* Alert boxes */
     .alert-box {
-        border-radius: 16px;
-        padding: 1.5rem 2rem;
-        margin: 1.5rem 0;
-        border-left: 5px solid;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-        backdrop-filter: blur(10px);
-        transition: all 0.3s ease;
-    }
-    
-    .alert-box:hover {
-        transform: translateX(5px);
-        box-shadow: 0 15px 40px rgba(0,0,0,0.15);
+        border-radius: 12px;
+        padding: 1rem 1.5rem;
+        margin: 1rem 0;
+        border-left: 4px solid;
     }
     
     .alert-info {
-        background: linear-gradient(135deg, rgba(219, 234, 254, 0.95), rgba(191, 219, 254, 0.95));
+        background: #dbeafe;
         border-color: #3b82f6;
         color: #1e40af;
     }
     
     .alert-warning {
-        background: linear-gradient(135deg, rgba(254, 243, 199, 0.95), rgba(253, 230, 138, 0.95));
+        background: #fef3c7;
         border-color: #f59e0b;
         color: #92400e;
     }
     
     .alert-success {
-        background: linear-gradient(135deg, rgba(209, 250, 229, 0.95), rgba(167, 243, 208, 0.95));
+        background: #d1fae5;
         border-color: #10b981;
         color: #065f46;
     }
@@ -410,41 +276,21 @@ st.markdown("""
     
     /* Animations */
     @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(30px); }
+        from { opacity: 0; transform: translateY(20px); }
         to { opacity: 1; transform: translateY(0); }
     }
     
     .fade-in {
-        animation: fadeIn 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        animation: fadeIn 0.5s ease-out;
     }
     
     @keyframes pulse {
-        0%, 100% { opacity: 1; transform: scale(1); }
-        50% { opacity: 0.8; transform: scale(1.05); }
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
     }
     
     .pulse {
-        animation: pulse 2s ease-in-out infinite;
-    }
-    
-    @keyframes float {
-        0%, 100% { transform: translateY(0px); }
-        50% { transform: translateY(-20px); }
-    }
-    
-    .float {
-        animation: float 3s ease-in-out infinite;
-    }
-    
-    @keyframes shimmer {
-        0% { background-position: -1000px 0; }
-        100% { background-position: 1000px 0; }
-    }
-    
-    .shimmer {
-        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
-        background-size: 1000px 100%;
-        animation: shimmer 2s infinite;
+        animation: pulse 2s infinite;
     }
     
     /* Scrollbar */
@@ -459,21 +305,6 @@ st.markdown("""
     ::-webkit-scrollbar-thumb {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         border-radius: 5px;
-    }
-    
-    /* Fix Streamlit text colors */
-    .stMarkdown, .stText, p, div, span, label {
-        color: #1f2937 !important;
-    }
-    
-    /* White cards need dark text */
-    .element-container {
-        color: #1f2937 !important;
-    }
-    
-    /* Chart titles */
-    .js-plotly-plot .plotly .gtitle {
-        fill: #1f2937 !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -609,7 +440,7 @@ if page == "🏠 Dashboard":
     with col1:
         st.markdown("""
             <div class='dashboard-card'>
-                <h3 style='margin-top: 0; color: #1f2937 !important;'>📈 Detection Trends</h3>
+                <h3 style='margin-top: 0;'>📈 Detection Trends</h3>
             </div>
         """, unsafe_allow_html=True)
         
@@ -643,7 +474,7 @@ if page == "🏠 Dashboard":
     with col2:
         st.markdown("""
             <div class='dashboard-card'>
-                <h3 style='margin-top: 0; color: #1f2937 !important;'>🎯 Disease Distribution</h3>
+                <h3 style='margin-top: 0;'>🎯 Disease Distribution</h3>
             </div>
         """, unsafe_allow_html=True)
         
@@ -675,7 +506,7 @@ if page == "🏠 Dashboard":
     with col1:
         st.markdown("""
             <div class='dashboard-card'>
-                <h3 style='margin-top: 0; color: #1f2937 !important;'>🔔 Recent Activity</h3>
+                <h3 style='margin-top: 0;'>🔔 Recent Activity</h3>
             </div>
         """, unsafe_allow_html=True)
         
@@ -691,7 +522,7 @@ if page == "🏠 Dashboard":
                 <div style='padding: 1rem; border-bottom: 1px solid #e5e7eb; display: flex; align-items: center;'>
                     <div style='font-size: 1.5rem; margin-right: 1rem;'>{activity['icon']}</div>
                     <div style='flex: 1;'>
-                        <div style='font-weight: 600; color: #1f2937;'>{activity['action']}</div>
+                        <div style='font-weight: 600;'>{activity['action']}</div>
                         <div style='font-size: 0.85rem; color: #6b7280;'>{activity['detail']}</div>
                     </div>
                     <div style='font-size: 0.75rem; color: #9ca3af;'>{activity['time']}</div>
@@ -701,7 +532,7 @@ if page == "🏠 Dashboard":
     with col2:
         st.markdown("""
             <div class='dashboard-card'>
-                <h3 style='margin-top: 0; color: #1f2937 !important;'>⚠️ System Alerts</h3>
+                <h3 style='margin-top: 0;'>⚠️ System Alerts</h3>
             </div>
         """, unsafe_allow_html=True)
         

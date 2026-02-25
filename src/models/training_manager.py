@@ -68,24 +68,26 @@ class TrainingManager:
         
         logger.info(f"Loading dataset from {data_dir}")
         
-        # Load training dataset
+        # Load training dataset with label_mode='categorical' for one-hot encoding
         train_ds = keras.utils.image_dataset_from_directory(
             data_dir,
             validation_split=self.config.validation_split,
             subset="training",
             seed=123,
             image_size=image_size,
-            batch_size=batch_size
+            batch_size=batch_size,
+            label_mode='categorical'  # Changed from default 'int' to 'categorical'
         )
         
-        # Load validation dataset
+        # Load validation dataset with label_mode='categorical'
         val_ds = keras.utils.image_dataset_from_directory(
             data_dir,
             validation_split=self.config.validation_split,
             subset="validation",
             seed=123,
             image_size=image_size,
-            batch_size=batch_size
+            batch_size=batch_size,
+            label_mode='categorical'  # Changed from default 'int' to 'categorical'
         )
         
         # Normalize pixel values
@@ -235,7 +237,12 @@ class TrainingManager:
         save_path = Path(save_path)
         save_path.parent.mkdir(parents=True, exist_ok=True)
         
+        # Convert numpy float32 to Python float for JSON serialization
+        history_dict = {}
+        for key, values in self.history.history.items():
+            history_dict[key] = [float(v) for v in values]
+        
         with open(save_path, 'w') as f:
-            json.dump(self.history.history, f, indent=2)
+            json.dump(history_dict, f, indent=2)
         
         logger.info(f"Training history saved to {save_path}")
