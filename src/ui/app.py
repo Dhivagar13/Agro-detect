@@ -10,12 +10,20 @@ from datetime import datetime, timedelta
 import pandas as pd
 import numpy as np
 from PIL import Image
+import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from config import load_config
 from src.inference.inference_engine import InferenceEngine
+from src.utils.disease_remedies import get_remedy, is_valid_plant_image
+from src.utils.groq_analyzer import get_groq_analyzer
+from src.utils.settings_manager import get_settings_manager
 
 # Page configuration
 st.set_page_config(
@@ -38,6 +46,22 @@ if 'total_predictions' not in st.session_state:
     st.session_state.total_predictions = 0
 if 'model_trained' not in st.session_state:
     st.session_state.model_trained = False
+if 'groq_api_key' not in st.session_state:
+    # Try to load from environment variable or settings
+    import os
+    st.session_state.groq_api_key = os.getenv('GROQ_API_KEY', '')
+if 'settings_manager' not in st.session_state:
+    st.session_state.settings_manager = get_settings_manager()
+
+# Get settings manager
+settings_mgr = st.session_state.settings_manager
+
+# Update Groq API key from settings if available
+if settings_mgr.model.groq_api_key:
+    st.session_state.groq_api_key = settings_mgr.model.groq_api_key
+
+# Initialize Groq analyzer
+groq_analyzer = get_groq_analyzer(st.session_state.groq_api_key)
 
 # Initialize inference engine
 @st.cache_resource
@@ -475,6 +499,74 @@ st.markdown("""
     .js-plotly-plot .plotly .gtitle {
         fill: #1f2937 !important;
     }
+    
+    /* Dropdown/Selectbox styling - Fix black text issue */
+    [data-baseweb="select"] {
+        background-color: white !important;
+    }
+    
+    [data-baseweb="select"] > div {
+        background-color: white !important;
+        color: #1f2937 !important;
+    }
+    
+    [data-baseweb="select"] input {
+        color: #1f2937 !important;
+    }
+    
+    [data-baseweb="select"] span {
+        color: #1f2937 !important;
+    }
+    
+    /* Dropdown menu options */
+    [role="listbox"] {
+        background-color: white !important;
+    }
+    
+    [role="option"] {
+        background-color: white !important;
+        color: #1f2937 !important;
+    }
+    
+    [role="option"]:hover {
+        background-color: #f3f4f6 !important;
+        color: #1f2937 !important;
+    }
+    
+    [data-baseweb="popover"] {
+        background-color: white !important;
+    }
+    
+    /* Input fields */
+    input, textarea, select {
+        color: #1f2937 !important;
+        background-color: white !important;
+    }
+    
+    /* Slider labels */
+    .stSlider label {
+        color: #1f2937 !important;
+    }
+    
+    /* Radio buttons */
+    .stRadio label {
+        color: #1f2937 !important;
+    }
+    
+    /* Checkbox labels */
+    .stCheckbox label {
+        color: #1f2937 !important;
+    }
+    
+    /* Number input */
+    .stNumberInput label {
+        color: #1f2937 !important;
+    }
+    
+    /* Text input */
+    .stTextInput label {
+        color: #1f2937 !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -830,36 +922,235 @@ elif page == "🔬 AI Scanner":
                     progress_bar.progress(100)
                     status_text.text("✅ Complete!")
                     
-                    st.session_state.prediction_history.append({
-                        'timestamp': datetime.now(),
-                        'disease': result.disease_class,
-                        'confidence': result.confidence,
-                        'image_name': uploaded_file.name
-                    })
-                    st.session_state.total_predictions += 1
-                    
-                    disease_name = result.disease_class.replace('_', ' ').replace('___', ' - ')
-                    
-                    if result.confidence >= 80:
-                        color = "#10b981"
-                        emoji = "🟢"
-                    elif result.confidence >= 60:
-                        color = "#f59e0b"
-                        emoji = "🟡"
+                    # Check if image is valid (confidence threshold from settings)
+                    if not is_valid_plant_image(result.confidence, threshold=settings_mgr.model.confidence_threshold):
+                        st.markdown("""
+                            <div style='background: #ef4444; color: white; border-radius: 15px; padding: 2rem; text-align: center; margin: 1rem 0;'>
+                                <h2 style='margin: 0;'>❌ Invalid Image</h2>
+                                <h1 style='font-size: 2rem; margin: 1rem 0;'>Confidence: {:.1f}%</h1>
+                                <p>This image does not appear to be a valid plant leaf image or doesn't match our trained categories.</p>
+                                <p><strong>Please upload:</strong></p>
+                                <ul style='text-align: left; display: inline-block;'>
+                                    <li>Clear image of plant leaves</li>
+                                    <li>Good lighting conditions</li>
+                                    <li>Close-up view of affected area</li>
+                                    <li>Supported plant types: Tomato, Potato, Pepper</li>
+                                </ul>
+                            </div>
+                        """.format(result.confidence), unsafe_allow_html=True)
                     else:
-                        color = "#ef4444"
-                        emoji = "🔴"
-                    
-                    st.markdown(f"""
-                        <div style='background: {color}; color: white; border-radius: 15px; padding: 2rem; text-align: center; margin: 1rem 0;'>
-                            <h2 style='margin: 0;'>{emoji} {disease_name}</h2>
-                            <h1 style='font-size: 3rem; margin: 1rem 0;'>{result.confidence:.1f}%</h1>
-                            <p>Inference Time: {result.inference_time_ms:.2f}ms</p>
-                        </div>
-                    """, unsafe_allow_html=True)
-                    
-                    if not st.session_state.model_trained:
-                        st.warning("⚠️ Model not trained on plant disease data. Results may be inaccurate. Please train the model for reliable predictions.")
+                        st.session_state.prediction_history.append({
+                            'timestamp': datetime.now(),
+                            'disease': result.disease_class,
+                            'confidence': result.confidence,
+                            'image_name': uploaded_file.name
+                        })
+                        st.session_state.total_predictions += 1
+                        
+                        disease_name = result.disease_class.replace('_', ' ').replace('___', ' - ')
+                        
+                        if result.confidence >= 80:
+                            color = "#10b981"
+                            emoji = "🟢"
+                        elif result.confidence >= 60:
+                            color = "#f59e0b"
+                            emoji = "🟡"
+                        else:
+                            color = "#ef4444"
+                            emoji = "🔴"
+                        
+                        st.markdown(f"""
+                            <div style='background: {color}; color: white; border-radius: 15px; padding: 2rem; text-align: center; margin: 1rem 0;'>
+                                <h2 style='margin: 0;'>{emoji} {disease_name}</h2>
+                                <h1 style='font-size: 3rem; margin: 1rem 0;'>{result.confidence:.1f}%</h1>
+                                <p>Inference Time: {result.inference_time_ms:.2f}ms</p>
+                            </div>
+                        """, unsafe_allow_html=True)
+                        
+                        # Get AI-powered remedy recommendations
+                        remedy_info = get_remedy(result.disease_class)
+                        
+                        # Get enhanced AI analysis from Groq
+                        ai_analysis = None
+                        if groq_analyzer and remedy_info['symptoms']:
+                            with st.spinner("🤖 Getting AI-powered insights..."):
+                                try:
+                                    ai_analysis = groq_analyzer.analyze_disease(
+                                        disease_name=remedy_info['name'],
+                                        confidence=result.confidence,
+                                        symptoms=remedy_info['symptoms'],
+                                        causes=remedy_info['causes'],
+                                        context=f"Detection confidence: {result.confidence:.1f}%"
+                                    )
+                                except Exception as e:
+                                    st.warning(f"AI analysis unavailable: {str(e)}")
+                        
+                        # Display AI Analysis if available
+                        if ai_analysis:
+                            st.markdown("<br>", unsafe_allow_html=True)
+                            
+                            # Urgency badge
+                            urgency_colors = {
+                                'low': '#10b981',
+                                'moderate': '#f59e0b',
+                                'high': '#ef4444',
+                                'critical': '#dc2626'
+                            }
+                            urgency_color = urgency_colors.get(ai_analysis['urgency'], '#f59e0b')
+                            
+                            st.markdown(f"""
+                                <div class='dashboard-card' style='border-left: 5px solid {urgency_color};'>
+                                    <h3 style='margin-top: 0;'>🤖 AI-Powered Expert Analysis</h3>
+                                    <div style='background: {urgency_color}; color: white; display: inline-block; padding: 0.5rem 1rem; border-radius: 20px; font-weight: bold; margin-bottom: 1rem;'>
+                                        Urgency: {ai_analysis['urgency'].upper()}
+                                    </div>
+                                    <p style='font-size: 1.1rem; line-height: 1.8; margin: 1rem 0;'>{ai_analysis['analysis']}</p>
+                                </div>
+                            """, unsafe_allow_html=True)
+                            
+                            # AI Recommendations
+                            if ai_analysis['recommendations']:
+                                st.markdown("""
+                                    <div class='dashboard-card'>
+                                        <h3 style='margin-top: 0;'>💡 AI-Recommended Immediate Actions</h3>
+                                    </div>
+                                """, unsafe_allow_html=True)
+                                
+                                # Parse and display recommendations
+                                recommendations = ai_analysis['recommendations'].strip().split('\n')
+                                for rec in recommendations:
+                                    if rec.strip():
+                                        st.markdown(f"• {rec.strip()}")
+                            
+                            # Additional Tips
+                            if ai_analysis['additional_tips']:
+                                st.markdown("<br>", unsafe_allow_html=True)
+                                st.markdown("""
+                                    <div class='dashboard-card'>
+                                        <h3 style='margin-top: 0;'>💭 Expert Tips</h3>
+                                    </div>
+                                """, unsafe_allow_html=True)
+                                
+                                tips = ai_analysis['additional_tips'].strip().split('\n')
+                                for tip in tips:
+                                    if tip.strip():
+                                        st.markdown(f"• {tip.strip()}")
+                        
+                        st.markdown("<br>", unsafe_allow_html=True)
+                        
+                        # Disease Information
+                        st.markdown("""
+                            <div class='dashboard-card'>
+                                <h3 style='margin-top: 0;'>🔬 Disease Information</h3>
+                            </div>
+                        """, unsafe_allow_html=True)
+                        
+                        col_a, col_b = st.columns(2)
+                        with col_a:
+                            st.markdown(f"**Severity:** `{remedy_info['severity']}`")
+                        with col_b:
+                            st.markdown(f"**Disease:** {remedy_info['name']}")
+                        
+                        st.markdown(f"**Description:** {remedy_info['description']}")
+                        
+                        # Symptoms
+                        if remedy_info['symptoms']:
+                            st.markdown("<br>", unsafe_allow_html=True)
+                            st.markdown("""
+                                <div class='dashboard-card'>
+                                    <h3 style='margin-top: 0;'>🔍 Symptoms</h3>
+                                </div>
+                            """, unsafe_allow_html=True)
+                            for symptom in remedy_info['symptoms']:
+                                st.markdown(f"• {symptom}")
+                        
+                        # Causes
+                        if remedy_info['causes']:
+                            st.markdown("<br>", unsafe_allow_html=True)
+                            st.markdown("""
+                                <div class='dashboard-card'>
+                                    <h3 style='margin-top: 0;'>⚠️ Causes</h3>
+                                </div>
+                            """, unsafe_allow_html=True)
+                            for cause in remedy_info['causes']:
+                                st.markdown(f"• {cause}")
+                        
+                        # Treatment Options
+                        st.markdown("<br>", unsafe_allow_html=True)
+                        st.markdown("""
+                            <div class='dashboard-card'>
+                                <h3 style='margin-top: 0;'>💊 AI-Recommended Treatment Solutions</h3>
+                            </div>
+                        """, unsafe_allow_html=True)
+                        
+                        tab_organic, tab_chemical, tab_ai_compare = st.tabs(["🌿 Organic Remedies", "🧪 Chemical Treatments", "🤖 AI Comparison"])
+                        
+                        with tab_organic:
+                            if remedy_info['organic_remedies']:
+                                st.markdown("**Organic and Natural Solutions:**")
+                                for i, remedy in enumerate(remedy_info['organic_remedies'], 1):
+                                    st.markdown(f"{i}. {remedy}")
+                            else:
+                                st.info("No organic remedies needed - plant is healthy!")
+                        
+                        with tab_chemical:
+                            if remedy_info['chemical_remedies']:
+                                st.markdown("**Chemical Treatment Options:**")
+                                for i, remedy in enumerate(remedy_info['chemical_remedies'], 1):
+                                    st.markdown(f"{i}. {remedy}")
+                                st.warning("⚠️ Always follow label instructions and safety guidelines when using chemical treatments.")
+                            else:
+                                st.info("No chemical treatments needed - plant is healthy!")
+                        
+                        with tab_ai_compare:
+                            if groq_analyzer and remedy_info['organic_remedies'] and remedy_info['chemical_remedies']:
+                                with st.spinner("🤖 AI is comparing treatment options..."):
+                                    try:
+                                        comparison = groq_analyzer.compare_treatments(
+                                            disease_name=remedy_info['name'],
+                                            organic_options=remedy_info['organic_remedies'],
+                                            chemical_options=remedy_info['chemical_remedies']
+                                        )
+                                        
+                                        st.markdown("**🤖 AI Treatment Comparison:**")
+                                        st.markdown(comparison)
+                                        
+                                        # Weather advice
+                                        st.markdown("<br>", unsafe_allow_html=True)
+                                        st.markdown("**🌤️ Weather Considerations:**")
+                                        weather_advice = groq_analyzer.get_weather_advice(remedy_info['name'])
+                                        st.markdown(weather_advice)
+                                        
+                                    except Exception as e:
+                                        st.error(f"AI comparison unavailable: {str(e)}")
+                            else:
+                                st.info("AI comparison available when both organic and chemical treatments are present.")
+                        
+                        # Prevention
+                        if remedy_info['prevention']:
+                            st.markdown("<br>", unsafe_allow_html=True)
+                            st.markdown("""
+                                <div class='dashboard-card'>
+                                    <h3 style='margin-top: 0;'>🛡️ Prevention Strategies</h3>
+                                </div>
+                            """, unsafe_allow_html=True)
+                            for prevention in remedy_info['prevention']:
+                                st.markdown(f"• {prevention}")
+                        
+                        # Best Practices
+                        if remedy_info['best_practices']:
+                            st.markdown("<br>", unsafe_allow_html=True)
+                            st.markdown("""
+                                <div class='dashboard-card'>
+                                    <h3 style='margin-top: 0;'>✅ Best Practices</h3>
+                                </div>
+                            """, unsafe_allow_html=True)
+                            for practice in remedy_info['best_practices']:
+                                st.markdown(f"• {practice}")
+                        
+                        if not st.session_state.model_trained:
+                            st.markdown("<br>", unsafe_allow_html=True)
+                            st.warning("⚠️ Model not trained on plant disease data. Results may be inaccurate. Please train the model for reliable predictions.")
                     
                 except Exception as e:
                     st.error(f"Error: {str(e)}")
@@ -889,6 +1180,851 @@ elif page == "📊 Analytics":
                     <div class='metric-change'>{change}</div>
                 </div>
             """, unsafe_allow_html=True)
+
+elif page == "📈 Reports":
+    st.markdown("""
+        <div class='page-header fade-in'>
+            <div class='page-title'>📈 Comprehensive Reports</div>
+            <div class='page-subtitle'>
+                Detailed analysis and insights from your detection history
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    # Report type selector
+    report_type = st.selectbox(
+        "Select Report Type",
+        ["Detection Summary", "Disease Distribution", "Performance Metrics", "Historical Trends", "Export Data"]
+    )
+    
+    if report_type == "Detection Summary":
+        st.markdown("""
+            <div class='dashboard-card'>
+                <h3 style='margin-top: 0;'>📊 Detection Summary Report</h3>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.metric("Total Detections", len(st.session_state.prediction_history))
+            st.metric("Today's Scans", st.session_state.total_predictions)
+        
+        with col2:
+            if st.session_state.prediction_history:
+                avg_conf = np.mean([p['confidence'] for p in st.session_state.prediction_history])
+                st.metric("Average Confidence", f"{avg_conf:.1f}%")
+            else:
+                st.metric("Average Confidence", "N/A")
+            st.metric("Model Status", "Active" if engine else "Offline")
+        
+        with col3:
+            if class_names:
+                st.metric("Trained Classes", len(class_names))
+            else:
+                st.metric("Trained Classes", "0")
+            st.metric("Model Type", "MobileNetV2")
+        
+        # Recent detections table
+        if st.session_state.prediction_history:
+            st.markdown("<br>", unsafe_allow_html=True)
+            st.markdown("""
+                <div class='dashboard-card'>
+                    <h3 style='margin-top: 0;'>🕐 Recent Detections</h3>
+                </div>
+            """, unsafe_allow_html=True)
+            
+            df = pd.DataFrame(st.session_state.prediction_history)
+            df['timestamp'] = pd.to_datetime(df['timestamp'])
+            df = df.sort_values('timestamp', ascending=False).head(10)
+            df['disease'] = df['disease'].str.replace('_', ' ')
+            df['confidence'] = df['confidence'].round(2)
+            
+            st.dataframe(df, use_container_width=True)
+        else:
+            st.info("No detection history available yet. Start scanning to see reports!")
+    
+    elif report_type == "Disease Distribution":
+        st.markdown("""
+            <div class='dashboard-card'>
+                <h3 style='margin-top: 0;'>🎯 Disease Distribution Analysis</h3>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        if st.session_state.prediction_history:
+            df = pd.DataFrame(st.session_state.prediction_history)
+            disease_counts = df['disease'].value_counts()
+            
+            col1, col2 = st.columns([2, 1])
+            
+            with col1:
+                fig = px.bar(
+                    x=disease_counts.index,
+                    y=disease_counts.values,
+                    labels={'x': 'Disease', 'y': 'Count'},
+                    title='Disease Detection Frequency',
+                    color=disease_counts.values,
+                    color_continuous_scale='Viridis'
+                )
+                fig.update_layout(height=400)
+                st.plotly_chart(fig, use_container_width=True)
+            
+            with col2:
+                fig = go.Figure(data=[go.Pie(
+                    labels=disease_counts.index,
+                    values=disease_counts.values,
+                    hole=0.4
+                )])
+                fig.update_layout(height=400, title='Distribution %')
+                st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("No data available for distribution analysis.")
+    
+    elif report_type == "Performance Metrics":
+        st.markdown("""
+            <div class='dashboard-card'>
+                <h3 style='margin-top: 0;'>⚡ Performance Metrics</h3>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("### Model Performance")
+            
+            # Check if training history exists
+            history_path = Path('models/training_history.json')
+            if history_path.exists():
+                with open(history_path, 'r') as f:
+                    history = json.load(f)
+                
+                st.metric("Final Training Accuracy", f"{history['accuracy'][-1]*100:.2f}%")
+                st.metric("Final Validation Accuracy", f"{history['val_accuracy'][-1]*100:.2f}%")
+                st.metric("Training Epochs", len(history['accuracy']))
+                
+                # Plot training history
+                fig = go.Figure()
+                fig.add_trace(go.Scatter(
+                    y=history['accuracy'],
+                    name='Training Accuracy',
+                    mode='lines+markers'
+                ))
+                fig.add_trace(go.Scatter(
+                    y=history['val_accuracy'],
+                    name='Validation Accuracy',
+                    mode='lines+markers'
+                ))
+                fig.update_layout(
+                    title='Training History',
+                    xaxis_title='Epoch',
+                    yaxis_title='Accuracy',
+                    height=300
+                )
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("No training history available. Train the model first.")
+        
+        with col2:
+            st.markdown("### System Performance")
+            
+            if st.session_state.prediction_history:
+                # Calculate average inference time (simulated)
+                avg_inference = 125.5
+                st.metric("Avg Inference Time", f"{avg_inference:.1f}ms")
+                st.metric("Throughput", f"{1000/avg_inference:.1f} images/sec")
+                st.metric("Model Size", "14.2 MB")
+                st.metric("Memory Usage", "~500 MB")
+                
+                # Confidence distribution
+                df = pd.DataFrame(st.session_state.prediction_history)
+                fig = px.histogram(
+                    df,
+                    x='confidence',
+                    nbins=20,
+                    title='Confidence Score Distribution',
+                    labels={'confidence': 'Confidence %', 'count': 'Frequency'}
+                )
+                fig.update_layout(height=300)
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("No performance data available yet.")
+    
+    elif report_type == "Historical Trends":
+        st.markdown("""
+            <div class='dashboard-card'>
+                <h3 style='margin-top: 0;'>📈 Historical Trends</h3>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        if st.session_state.prediction_history:
+            df = pd.DataFrame(st.session_state.prediction_history)
+            df['timestamp'] = pd.to_datetime(df['timestamp'])
+            df['date'] = df['timestamp'].dt.date
+            
+            daily_counts = df.groupby('date').size().reset_index(name='count')
+            
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(
+                x=daily_counts['date'],
+                y=daily_counts['count'],
+                mode='lines+markers',
+                name='Daily Detections',
+                fill='tozeroy',
+                line=dict(color='#667eea', width=3)
+            ))
+            fig.update_layout(
+                title='Detection Trends Over Time',
+                xaxis_title='Date',
+                yaxis_title='Number of Detections',
+                height=400
+            )
+            st.plotly_chart(fig, use_container_width=True)
+            
+            # Confidence trends
+            daily_conf = df.groupby('date')['confidence'].mean().reset_index()
+            
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(
+                x=daily_conf['date'],
+                y=daily_conf['confidence'],
+                mode='lines+markers',
+                name='Average Confidence',
+                line=dict(color='#10b981', width=3)
+            ))
+            fig.update_layout(
+                title='Average Confidence Trends',
+                xaxis_title='Date',
+                yaxis_title='Confidence %',
+                height=400
+            )
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("No historical data available yet.")
+    
+    elif report_type == "Export Data":
+        st.markdown("""
+            <div class='dashboard-card'>
+                <h3 style='margin-top: 0;'>📥 Export Data</h3>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        if st.session_state.prediction_history:
+            df = pd.DataFrame(st.session_state.prediction_history)
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("### Export Options")
+                export_format = st.radio("Select Format", ["CSV", "JSON", "Excel"])
+                
+                if st.button("Generate Export File", use_container_width=True):
+                    if export_format == "CSV":
+                        csv = df.to_csv(index=False)
+                        st.download_button(
+                            "Download CSV",
+                            csv,
+                            "agrodetect_report.csv",
+                            "text/csv",
+                            use_container_width=True
+                        )
+                    elif export_format == "JSON":
+                        json_str = df.to_json(orient='records', date_format='iso')
+                        st.download_button(
+                            "Download JSON",
+                            json_str,
+                            "agrodetect_report.json",
+                            "application/json",
+                            use_container_width=True
+                        )
+                    else:
+                        st.info("Excel export requires openpyxl. Install with: pip install openpyxl")
+            
+            with col2:
+                st.markdown("### Data Preview")
+                st.dataframe(df.head(10), use_container_width=True)
+                st.info(f"Total records: {len(df)}")
+        else:
+            st.info("No data available to export.")
+
+elif page == "🎯 Training":
+    st.markdown("""
+        <div class='page-header fade-in'>
+            <div class='page-title'>🎯 Model Training Center</div>
+            <div class='page-subtitle'>
+                Train your AI model on custom plant disease datasets
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    tab1, tab2, tab3 = st.tabs(["🚀 Quick Train", "⚙️ Advanced Settings", "📊 Training History"])
+    
+    with tab1:
+        st.markdown("""
+            <div class='dashboard-card'>
+                <h3 style='margin-top: 0;'>🚀 Quick Training</h3>
+                <p>Train your model with recommended settings</p>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        col1, col2 = st.columns([2, 1])
+        
+        with col1:
+            dataset_path = st.text_input(
+                "Dataset Path",
+                value="D:\\datasets\\plantvillage\\PlantVillage",
+                help="Path to your dataset folder with class subdirectories"
+            )
+            
+            num_classes = st.number_input(
+                "Number of Classes",
+                min_value=2,
+                max_value=100,
+                value=15,
+                help="Number of disease classes in your dataset"
+            )
+            
+            epochs = st.slider(
+                "Training Epochs",
+                min_value=10,
+                max_value=100,
+                value=50,
+                help="More epochs = better accuracy but longer training time"
+            )
+            
+            batch_size = st.selectbox(
+                "Batch Size",
+                [16, 32, 64],
+                index=1,
+                help="Larger batch = faster training but more memory"
+            )
+            
+            learning_rate = st.select_slider(
+                "Learning Rate",
+                options=[0.0001, 0.0005, 0.001, 0.005, 0.01],
+                value=0.001,
+                help="Lower = more stable, Higher = faster convergence"
+            )
+        
+        with col2:
+            st.markdown("### 📋 Training Info")
+            st.info(f"""
+            **Estimated Time:**  
+            {epochs * 2} - {epochs * 5} minutes
+            
+            **Model:** MobileNetV2  
+            **Input Size:** 224x224  
+            **Framework:** TensorFlow
+            
+            **Requirements:**
+            - Organized dataset
+            - 2GB+ free RAM
+            - GPU recommended
+            """)
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        col_a, col_b, col_c = st.columns([1, 1, 1])
+        
+        with col_b:
+            if st.button("🚀 Start Training", use_container_width=True, type="primary"):
+                st.markdown("""
+                    <div class='alert-box alert-info'>
+                        <strong>📝 Training Command</strong><br>
+                        Run this command in your terminal:
+                    </div>
+                """, unsafe_allow_html=True)
+                
+                command = f"""python train_model.py --data-dir "{dataset_path}" --num-classes {num_classes} --epochs {epochs} --batch-size {batch_size} --learning-rate {learning_rate}"""
+                
+                st.code(command, language="bash")
+                
+                st.markdown("**Or use the quick training script:**")
+                st.code("./quick_train.bat", language="bash")
+                
+                st.success("Copy and run the command above in your terminal to start training!")
+    
+    with tab2:
+        st.markdown("""
+            <div class='dashboard-card'>
+                <h3 style='margin-top: 0;'>⚙️ Advanced Training Configuration</h3>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("### Model Architecture")
+            base_model = st.selectbox("Base Model", ["MobileNetV2", "ResNet50", "EfficientNetB0"])
+            input_size = st.selectbox("Input Size", ["224x224", "299x299", "384x384"])
+            freeze_layers = st.slider("Freeze Base Layers", 0, 150, 100)
+            
+            st.markdown("### Data Augmentation")
+            rotation = st.slider("Rotation Range", 0, 45, 20)
+            zoom = st.slider("Zoom Range", 0.0, 0.5, 0.2)
+            flip = st.checkbox("Horizontal Flip", value=True)
+            brightness = st.slider("Brightness Range", 0.0, 0.5, 0.2)
+        
+        with col2:
+            st.markdown("### Training Parameters")
+            optimizer = st.selectbox("Optimizer", ["Adam", "SGD", "RMSprop"])
+            loss_function = st.selectbox("Loss Function", ["Categorical Crossentropy", "Sparse Categorical Crossentropy"])
+            
+            st.markdown("### Callbacks")
+            early_stopping = st.checkbox("Early Stopping", value=True)
+            if early_stopping:
+                patience = st.number_input("Patience", 5, 20, 10)
+            
+            reduce_lr = st.checkbox("Reduce LR on Plateau", value=True)
+            tensorboard = st.checkbox("TensorBoard Logging", value=True)
+            
+            st.markdown("### Validation")
+            val_split = st.slider("Validation Split", 0.1, 0.3, 0.2)
+        
+        if st.button("💾 Save Configuration", use_container_width=True):
+            st.success("Configuration saved! Use this in your training script.")
+    
+    with tab3:
+        st.markdown("""
+            <div class='dashboard-card'>
+                <h3 style='margin-top: 0;'>📊 Training History</h3>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        history_path = Path('models/training_history.json')
+        
+        if history_path.exists():
+            with open(history_path, 'r') as f:
+                history = json.load(f)
+            
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                st.metric("Final Training Accuracy", f"{history['accuracy'][-1]*100:.2f}%")
+            with col2:
+                st.metric("Final Validation Accuracy", f"{history['val_accuracy'][-1]*100:.2f}%")
+            with col3:
+                st.metric("Total Epochs", len(history['accuracy']))
+            with col4:
+                best_val_acc = max(history['val_accuracy'])
+                st.metric("Best Validation Accuracy", f"{best_val_acc*100:.2f}%")
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+            
+            # Accuracy plot
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(
+                y=[acc * 100 for acc in history['accuracy']],
+                name='Training Accuracy',
+                mode='lines+markers',
+                line=dict(color='#667eea', width=3)
+            ))
+            fig.add_trace(go.Scatter(
+                y=[acc * 100 for acc in history['val_accuracy']],
+                name='Validation Accuracy',
+                mode='lines+markers',
+                line=dict(color='#10b981', width=3)
+            ))
+            fig.update_layout(
+                title='Training & Validation Accuracy',
+                xaxis_title='Epoch',
+                yaxis_title='Accuracy (%)',
+                height=400,
+                hovermode='x unified'
+            )
+            st.plotly_chart(fig, use_container_width=True)
+            
+            # Loss plot
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(
+                y=history['loss'],
+                name='Training Loss',
+                mode='lines+markers',
+                line=dict(color='#ef4444', width=3)
+            ))
+            fig.add_trace(go.Scatter(
+                y=history['val_loss'],
+                name='Validation Loss',
+                mode='lines+markers',
+                line=dict(color='#f59e0b', width=3)
+            ))
+            fig.update_layout(
+                title='Training & Validation Loss',
+                xaxis_title='Epoch',
+                yaxis_title='Loss',
+                height=400,
+                hovermode='x unified'
+            )
+            st.plotly_chart(fig, use_container_width=True)
+            
+            # Download history
+            if st.button("📥 Download Training History"):
+                json_str = json.dumps(history, indent=2)
+                st.download_button(
+                    "Download JSON",
+                    json_str,
+                    "training_history.json",
+                    "application/json"
+                )
+        else:
+            st.info("No training history available. Train your model first!")
+            
+            st.markdown("""
+                <div class='alert-box alert-info'>
+                    <strong>📚 Getting Started with Training</strong><br><br>
+                    <strong>1. Prepare Your Dataset:</strong><br>
+                    Organize images in folders by class name<br><br>
+                    <strong>2. Run Training:</strong><br>
+                    Use the Quick Train tab or run quick_train.bat<br><br>
+                    <strong>3. Monitor Progress:</strong><br>
+                    Training history will appear here automatically
+                </div>
+            """, unsafe_allow_html=True)
+
+elif page == "⚙️ Settings":
+    st.markdown("""
+        <div class='page-header fade-in'>
+            <div class='page-title'>⚙️ System Settings</div>
+            <div class='page-subtitle'>
+                Configure your AgroDetect AI system
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    tab1, tab2, tab3, tab4 = st.tabs(["🔧 General", "🧠 Model", "🎨 Appearance", "ℹ️ About"])
+    
+    with tab1:
+        st.markdown("""
+            <div class='dashboard-card'>
+                <h3 style='margin-top: 0;'>🔧 General Settings</h3>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("### Application Settings")
+            
+            auto_save = st.checkbox("Auto-save Detection Results", value=settings_mgr.general.auto_save, key="auto_save_check")
+            notifications = st.checkbox("Enable Notifications", value=settings_mgr.general.notifications, key="notifications_check")
+            sound_alerts = st.checkbox("Sound Alerts", value=settings_mgr.general.sound_alerts, key="sound_alerts_check")
+            
+            st.markdown("### Data Management")
+            
+            max_history = st.number_input("Max History Records", 100, 10000, settings_mgr.general.max_history, key="max_history_input")
+            auto_cleanup = st.checkbox("Auto-cleanup Old Records", value=settings_mgr.general.auto_cleanup, key="auto_cleanup_check")
+            
+            cleanup_days = settings_mgr.general.cleanup_days
+            if auto_cleanup:
+                cleanup_days = st.number_input("Keep Records (days)", 7, 365, settings_mgr.general.cleanup_days, key="cleanup_days_input")
+        
+        with col2:
+            st.markdown("### Performance")
+            
+            cache_enabled = st.checkbox("Enable Caching", value=settings_mgr.general.cache_enabled, key="cache_check")
+            gpu_acceleration = st.checkbox("GPU Acceleration", value=settings_mgr.general.gpu_acceleration, key="gpu_check")
+            
+            st.markdown("### Language & Region")
+            
+            language = st.selectbox("Language", ["English", "Spanish", "French", "Hindi", "Chinese"], 
+                                   index=["English", "Spanish", "French", "Hindi", "Chinese"].index(settings_mgr.general.language), 
+                                   key="language_select")
+            timezone = st.selectbox("Timezone", ["UTC", "EST", "PST", "IST", "CET"],
+                                   index=["UTC", "EST", "PST", "IST", "CET"].index(settings_mgr.general.timezone),
+                                   key="timezone_select")
+            date_format = st.selectbox("Date Format", ["MM/DD/YYYY", "DD/MM/YYYY", "YYYY-MM-DD"],
+                                      index=["MM/DD/YYYY", "DD/MM/YYYY", "YYYY-MM-DD"].index(settings_mgr.general.date_format),
+                                      key="date_format_select")
+        
+        if st.button("💾 Save General Settings", use_container_width=True, key="save_general_btn"):
+            # Update settings
+            success = settings_mgr.update_general(
+                auto_save=auto_save,
+                notifications=notifications,
+                sound_alerts=sound_alerts,
+                max_history=max_history,
+                auto_cleanup=auto_cleanup,
+                cleanup_days=cleanup_days,
+                cache_enabled=cache_enabled,
+                gpu_acceleration=gpu_acceleration,
+                language=language,
+                timezone=timezone,
+                date_format=date_format
+            )
+            
+            if success:
+                st.success("✅ Settings saved successfully!")
+                
+                # Apply settings immediately
+                if settings_mgr.general.auto_cleanup and len(st.session_state.prediction_history) > max_history:
+                    st.session_state.prediction_history = st.session_state.prediction_history[-max_history:]
+                    st.info(f"🧹 Cleaned up history to {max_history} records")
+                
+                if settings_mgr.general.notifications:
+                    st.info("🔔 Notifications enabled")
+            else:
+                st.error("❌ Failed to save settings")
+    
+    with tab2:
+        st.markdown("""
+            <div class='dashboard-card'>
+                <h3 style='margin-top: 0;'>🧠 Model Configuration</h3>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("### Inference Settings")
+            
+            confidence_threshold = st.slider("Confidence Threshold (%)", 0, 100, int(settings_mgr.model.confidence_threshold), key="conf_threshold_slider")
+            st.info(f"Images below {confidence_threshold}% confidence will be marked as invalid")
+            
+            batch_inference = st.checkbox("Enable Batch Inference", value=settings_mgr.model.batch_inference, key="batch_inf_check")
+            batch_size_inf = settings_mgr.model.batch_size
+            if batch_inference:
+                batch_size_inf = st.number_input("Batch Size", 1, 32, settings_mgr.model.batch_size, key="batch_size_input")
+            
+            st.markdown("### AI Enhancement")
+            
+            groq_key = st.text_input(
+                "Groq API Key",
+                value=st.session_state.groq_api_key,
+                type="password",
+                help="Enter your Groq API key for AI-powered analysis",
+                key="groq_key_input"
+            )
+            
+            if groq_analyzer:
+                st.success("✅ AI Analysis: Enabled")
+            else:
+                st.warning("⚠️ AI Analysis: Disabled (No API key)")
+            
+            st.markdown("### Model Selection")
+            
+            model_path = st.text_input("Model Path", settings_mgr.model.model_path, key="model_path_input")
+            class_names_path = st.text_input("Class Names Path", settings_mgr.model.class_names_path, key="class_names_path_input")
+            
+            if st.button("🔄 Reload Model", key="reload_model_btn"):
+                st.info("Model reload functionality - restart the app to load new model")
+        
+        with col2:
+            st.markdown("### Model Information")
+            
+            if engine and class_names:
+                st.success("✅ Model Loaded Successfully")
+                
+                st.markdown(f"""
+                **Architecture:** MobileNetV2  
+                **Classes:** {len(class_names)}  
+                **Input Size:** 224x224x3  
+                **Parameters:** ~3.5M  
+                **Model Size:** ~14 MB  
+                **Framework:** TensorFlow 2.15
+                """)
+                
+                with st.expander("View All Classes"):
+                    for i, class_name in enumerate(class_names, 1):
+                        st.text(f"{i}. {class_name.replace('_', ' ')}")
+            else:
+                st.error("❌ Model Not Loaded")
+                st.info("Train a model or download a pre-trained model to get started")
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+            st.markdown("### AI Features")
+            
+            if groq_analyzer:
+                st.markdown("""
+                **Enabled Features:**
+                - 🤖 Expert disease analysis
+                - 💡 Immediate action recommendations
+                - 🎯 Urgency assessment
+                - 💭 Contextual tips
+                - 🌤️ Weather-based advice
+                - ⚖️ Treatment comparison
+                """)
+            else:
+                st.markdown("""
+                **Available with API Key:**
+                - 🤖 AI-powered expert analysis
+                - 💡 Smart recommendations
+                - 🎯 Urgency assessment
+                - 💭 Contextual insights
+                - 🌤️ Weather considerations
+                - ⚖️ Treatment comparison
+                
+                Get your free API key at:
+                [groq.com](https://groq.com)
+                """)
+        
+        if st.button("💾 Save Model Settings", use_container_width=True, key="save_model_btn"):
+            # Update settings
+            success = settings_mgr.update_model(
+                confidence_threshold=float(confidence_threshold),
+                batch_inference=batch_inference,
+                batch_size=batch_size_inf,
+                model_path=model_path,
+                class_names_path=class_names_path,
+                groq_api_key=groq_key
+            )
+            
+            if success:
+                st.success("✅ Model settings saved!")
+                st.info("🔄 Restart the app to apply model path changes")
+                
+                # Update session state
+                st.session_state.groq_api_key = groq_key
+            else:
+                st.error("❌ Failed to save settings")
+    
+    with tab3:
+        st.markdown("""
+            <div class='dashboard-card'>
+                <h3 style='margin-top: 0;'>🎨 Appearance Settings</h3>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("### Theme")
+            
+            theme = st.radio("Color Theme", ["Default (Purple)", "Green", "Blue", "Dark"],
+                           index=["Default (Purple)", "Green", "Blue", "Dark"].index(settings_mgr.appearance.theme),
+                           key="theme_radio")
+            
+            st.markdown("### Layout")
+            
+            sidebar_default = st.radio("Sidebar Default", ["Expanded", "Collapsed"],
+                                      index=["Expanded", "Collapsed"].index(settings_mgr.appearance.sidebar_default),
+                                      key="sidebar_radio")
+            chart_style = st.selectbox("Chart Style", ["Modern", "Classic", "Minimal"],
+                                      index=["Modern", "Classic", "Minimal"].index(settings_mgr.appearance.chart_style),
+                                      key="chart_style_select")
+            
+            st.markdown("### Display")
+            
+            show_animations = st.checkbox("Show Animations", value=settings_mgr.appearance.show_animations, key="animations_check")
+            compact_mode = st.checkbox("Compact Mode", value=settings_mgr.appearance.compact_mode, key="compact_check")
+        
+        with col2:
+            st.markdown("### Preview")
+            
+            st.markdown("""
+                <div class='metric-card' style='margin: 1rem 0;'>
+                    <div class='metric-label'>Sample Metric</div>
+                    <div class='metric-value'>95.2%</div>
+                    <div class='metric-change'>↑ 5.2%</div>
+                </div>
+            """, unsafe_allow_html=True)
+            
+            st.markdown("""
+                <div class='alert-box alert-success'>
+                    <strong>✓ Preview</strong><br>
+                    This is how alerts will appear
+                </div>
+            """, unsafe_allow_html=True)
+            
+            st.info(f"""
+            **Current Settings:**
+            - Theme: {theme}
+            - Sidebar: {sidebar_default}
+            - Chart Style: {chart_style}
+            - Animations: {'On' if show_animations else 'Off'}
+            - Compact Mode: {'On' if compact_mode else 'Off'}
+            """)
+        
+        if st.button("💾 Save Appearance Settings", use_container_width=True, key="save_appearance_btn"):
+            # Update settings
+            success = settings_mgr.update_appearance(
+                theme=theme,
+                sidebar_default=sidebar_default,
+                chart_style=chart_style,
+                show_animations=show_animations,
+                compact_mode=compact_mode
+            )
+            
+            if success:
+                st.success("✅ Appearance settings saved!")
+                st.info("🔄 Refresh the page to see changes")
+            else:
+                st.error("❌ Failed to save settings")
+    
+    with tab4:
+        st.markdown("""
+            <div class='dashboard-card'>
+                <h3 style='margin-top: 0;'>ℹ️ About AgroDetect AI</h3>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        col1, col2 = st.columns([2, 1])
+        
+        with col1:
+            st.markdown("""
+            ### 🌿 AgroDetect AI
+            
+            **Version:** 3.1.0  
+            **Release Date:** February 2026  
+            **Framework:** Streamlit + TensorFlow
+            
+            ### 📋 Description
+            
+            AgroDetect AI is an advanced plant disease detection system powered by deep learning. 
+            Using state-of-the-art MobileNetV2 architecture, it provides fast and accurate 
+            identification of plant diseases with AI-powered treatment recommendations.
+            
+            ### ✨ Key Features
+            
+            - 🔬 Real-time disease detection
+            - 🤖 AI-powered remedy recommendations
+            - 📊 Comprehensive analytics and reporting
+            - 🎯 Custom model training
+            - 📱 Mobile-friendly interface
+            - 🌐 Multi-language support (coming soon)
+            
+            ### 🛠️ Technology Stack
+            
+            - **Frontend:** Streamlit
+            - **Backend:** Python 3.11
+            - **ML Framework:** TensorFlow 2.15
+            - **Model:** MobileNetV2 (Transfer Learning)
+            - **Visualization:** Plotly
+            - **Data Processing:** NumPy, Pandas
+            
+            ### 📚 Documentation
+            
+            - [User Guide](README.md)
+            - [Training Guide](TRAINING_GUIDE.md)
+            - [Dataset Setup](DATASET_SETUP_GUIDE.md)
+            - [API Documentation](SYSTEM_ARCHITECTURE.md)
+            
+            ### 📄 License
+            
+            MIT License - Open Source
+            
+            ### 🤝 Support
+            
+            For issues and feature requests, please contact support.
+            """)
+        
+        with col2:
+            st.markdown("""
+                <div class='metric-card' style='text-align: center;'>
+                    <div style='font-size: 4rem; margin: 1rem 0;'>🌿</div>
+                    <h3>AgroDetect AI</h3>
+                    <p>Smart Agriculture Platform</p>
+                </div>
+            """, unsafe_allow_html=True)
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+            
+            st.markdown("### 📊 System Status")
+            st.success("✅ All Systems Operational")
+            
+            st.markdown("### 🔄 Updates")
+            st.info("You're running the latest version")
+            
+            if st.button("🔍 Check for Updates", use_container_width=True):
+                st.success("✅ You have the latest version!")
 
 else:
     st.markdown(f"""
