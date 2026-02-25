@@ -1,33 +1,36 @@
 # Core ML and Computer Vision
-tensorflow==2.15.0
+tensorflow==2.18.0
 opencv-python-headless==4.10.0.84
-numpy==1.26.4
+numpy>=1.26.0,<2.1.0
 pillow>=10.0.0
 
 # Streamlit and Visualization
-streamlit==1.31.1
+streamlit>=1.40.0
 plotly==5.18.0
-pandas==2.2.0
-matplotlib==3.8.2
+pandas>=2.2.0
+matplotlib>=3.8.0
 
 # Authentication and Security
-streamlit-authenticator==0.3.1
-bcrypt==4.1.2
-pyjwt==2.8.0
+streamlit-authenticator>=0.3.1
+bcrypt>=4.1.0
+pyjwt>=2.8.0
 
 # Testing
-pytest==8.0.0
-hypothesis==6.98.3
-pytest-cov==4.1.0
+pytest>=8.0.0
+hypothesis>=6.98.0
+pytest-cov>=4.1.0
 
 # Model Optimization
 tensorflow-model-optimization>=0.8.0
 
 # Utilities
-python-dotenv==1.0.1
-pyyaml==6.0.1
-scikit-learn==1.4.0
-requests==2.31.0
+python-dotenv>=1.0.0
+pyyaml>=6.0.0
+scikit-learn>=1.4.0
+requests>=2.31.0
 
 # Google Gemini
-google-generativeai==0.3.2
+google-generativeai>=0.3.0
+
+# Groq
+groq>=0.4.0
