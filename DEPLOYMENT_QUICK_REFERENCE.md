@@ -15,22 +15,26 @@
 
 ## 🔑 Required: Add API Keys
 
-**IMPORTANT**: You must add these secrets in Streamlit Cloud dashboard:
-
-1. Go to: https://share.streamlit.io/
-2. Find your app: `agro-detect-qmpheriwpxxzbhruseeaot`
-3. Click: **Settings → Secrets**
-4. Add your API keys (from your local `.env` file):
+1. In Streamlit Cloud dashboard
+2. Go to: **Settings → Secrets**
+3. Add your API keys:
 
 ```toml
 GROQ_API_KEY = "your-groq-api-key-here"
 GEMINI_API_KEY = "your-gemini-api-key-here"
 ```
 
-5. Click **Save**
-6. Click **Reboot app**
+4. Click **Save**
+5. Click **Reboot app**
 
 ## 📋 Key Files
+
+- `requirements.txt` → TensorFlow 2.15.0 + all dependencies
+- `.streamlit/config.toml` → Streamlit configuration
+- `streamlit_app.py` → Entry point
+- ~~`runtime.txt`~~ → NOT USED by Streamlit Cloud (use dashboard UI instead)
+
+## 🎯 What to Expect
 
 - `runtime.txt` → Forces Python 3.11
 - `.python-version` → Python version specification
@@ -38,18 +42,21 @@ GEMINI_API_KEY = "your-gemini-api-key-here"
 - `.streamlit/config.toml` → Streamlit configuration
 - `streamlit_app.py` → Entry point
 
-## ⏱️ Deployment Timeline
+## ⏱️ Deployment Steps
 
-1. ✅ Code pushed to GitHub (commit 4b3e2d7)
-2. ⏳ Streamlit Cloud auto-detects changes
-3. ⏳ Builds with Python 3.11
-4. ⏳ Installs dependencies (3-5 minutes)
-5. ⏳ Starts app
-6. ⏳ **YOU ADD API KEYS** in dashboard
-7. ⏳ Reboot app
-8. ✅ App goes live!
+### STEP 1: Change Python Version in Dashboard (CRITICAL!)
 
-## 🎯 What to Expect
+**Streamlit Cloud does NOT use runtime.txt!**
+
+1. Go to: https://share.streamlit.io/
+2. Find your app: `agro-detect-qmpheriwpxxzbhruseeaot`
+3. Click **Settings** (gear icon or ⋮ menu)
+4. Find **Python version** setting (may be under Advanced settings)
+5. **Select: Python 3.11**
+6. Click **Save**
+7. Click **Reboot app**
+
+### STEP 2: Add API Keys
 
 **Successful Deployment Logs:**
 ```
